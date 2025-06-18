@@ -3,6 +3,9 @@ import pyttsx3
 import os
 import time
 import functools
+import random
+from pydub import AudioSegment
+from pydub.playback import play
 
 # --- Decorador para medir tiempo de ejecución ---
 def medir_tiempo(func):
@@ -87,18 +90,57 @@ def texto_a_voz_pyttsx3(texto, nombre_archivo="salida_pyttsx3.wav"): # pyttsx3 p
     except Exception as e:
         print(f"Error al generar audio con pyttsx3: {e}")
 
+# --- Función para repetir la melodía con crossfade ---
+def bucle_melodia_crossfade(melodia, duracion_objetivo, crossfade_ms=2000):
+    """
+    Repite la melodía hasta alcanzar la duración objetivo, aplicando crossfade solo entre repeticiones completas.
+    """
+    if len(melodia) == 0:
+        return AudioSegment.silent(duration=duracion_objetivo)
+    repeticiones = max(1, (duracion_objetivo // len(melodia)))
+    resultado = melodia
+    for _ in range(1, repeticiones):
+        resultado = resultado.append(melodia, crossfade=crossfade_ms)
+    restante = duracion_objetivo - len(resultado)
+    if restante > 0:
+        resultado += melodia[:restante]
+    return resultado[:duracion_objetivo]
+
+# --- Función para fusionar la voz generada con una melodía en bucle ---
+def fusionar_voz_con_melodia(archivo_voz, archivo_melodia, archivo_salida, fade_ms=5000, crossfade_ms=2000):
+    """
+    Fusiona la voz generada con una melodía en bucle, aplicando fade in/out y crossfade entre repeticiones.
+    """
+    try:
+        voz = AudioSegment.from_file(archivo_voz)
+        melodia = AudioSegment.from_file(archivo_melodia)
+        duracion_voz = len(voz)
+        # Repetir la melodía con crossfade
+        melodia_bucle = bucle_melodia_crossfade(melodia, duracion_voz, crossfade_ms)
+        # Bajar el volumen de la melodía a la mitad (~-20 dB)
+        melodia_bucle = melodia_bucle - 17
+        # Aplicar fade in y fade out
+        melodia_bucle = melodia_bucle.fade_in(fade_ms).fade_out(fade_ms)
+        # Mezclar la melodía con la voz (voz en primer plano)
+        combinado = melodia_bucle.overlay(voz)
+        combinado.export(archivo_salida, format="mp3" if archivo_salida.endswith(".mp3") else "wav")
+        print(f"Archivo fusionado generado: {archivo_salida}")
+    except Exception as e:
+        print(f"Error al fusionar audio: {e}")
+
 # --- Lógica principal ---
 if __name__ == "__main__":
-    nombre_archivo_entrada = "entrada.txt"
+    carpeta_in = "in"
+    carpeta_out = "out"
+    nombre_archivo_entrada = os.path.join(carpeta_in, "entrada.txt")
     print(f"Leyendo contenido del archivo: {nombre_archivo_entrada}")
     contenido_del_archivo = leer_archivo_txt(nombre_archivo_entrada)
     if contenido_del_archivo:
         # Extraer el nombre base del archivo (sin extensión)
-        nombre_base = os.path.splitext(nombre_archivo_entrada)[0]
-        
-        # Generar nombres de archivo de salida
-        nombre_salida_pyttsx3 = f"{nombre_base}_pyttsx3.wav"
-        nombre_salida_gtts = f"{nombre_base}_gtts.mp3"
+        nombre_base = os.path.splitext(os.path.basename(nombre_archivo_entrada))[0]
+        # Generar nombres de archivo de salida en carpeta out
+        nombre_salida_pyttsx3 = os.path.join(carpeta_out, f"{nombre_base}_pyttsx3.wav")
+        nombre_salida_gtts = os.path.join(carpeta_out, f"{nombre_base}_gtts.mp3")
         
         # Demora unos pocos segundos para leer, el archivo es mas grande
         print("\n--- Generando audio con pyttsx3 (sin internet) ---")
@@ -107,7 +149,29 @@ if __name__ == "__main__":
         # Demora mucho en generar el audio, pero es mas humano, el archivo es mas pequeño
         print("\n--- Generando audio con gTTS (requiere internet) ---")
         texto_a_voz_gtts(contenido_del_archivo, nombre_archivo=nombre_salida_gtts)
+        
+        # Seleccionar una melodía aleatoria
+        melodias_disponibles = [f for f in os.listdir(carpeta_in) if f.startswith("melodia_") and f.endswith(".mp3")]
+        if melodias_disponibles:
+            archivo_melodia = os.path.join(carpeta_in, random.choice(melodias_disponibles))
+            print(f"Melodía seleccionada: {os.path.basename(archivo_melodia)}")
+        else:
+            archivo_melodia = None
+            print("No se encontró ninguna melodía en la carpeta 'in'.")
+        archivo_voz_gtts = nombre_salida_gtts
+        archivo_voz_pyttsx3 = nombre_salida_pyttsx3
+        archivo_salida_fusion_gtts = os.path.join(carpeta_out, f"{nombre_base}_gtts_melodia.mp3")
+        archivo_salida_fusion_pyttsx3 = os.path.join(carpeta_out, f"{nombre_base}_pyttsx3_melodia.wav")
+        if archivo_melodia and os.path.exists(archivo_melodia):
+            if os.path.exists(archivo_voz_gtts):
+                print("\n--- Fusionando voz gTTS con melodía ---")
+                fusionar_voz_con_melodia(archivo_voz_gtts, archivo_melodia, archivo_salida_fusion_gtts)
+            if os.path.exists(archivo_voz_pyttsx3):
+                print("\n--- Fusionando voz pyttsx3 con melodía ---")
+                fusionar_voz_con_melodia(archivo_voz_pyttsx3, archivo_melodia, archivo_salida_fusion_pyttsx3)
+        else:
+            print("No se encontró el archivo de melodía para fusionar.")
     else:
         print("No se pudo leer el archivo de entrada. No se generará audio.")
 
-    print("\nProceso completado. Revisa los archivos de audio generados en tu carpeta.")
+    print("\nProceso completado. Revisa los archivos de audio generados en la carpeta 'out'.")
