@@ -32,10 +32,10 @@ python -m venv venv
 venv\Scripts\activate.bat
 ```
 
-4. Instala las dependencias necesarias:
+4. Instala las dependencias necesarias desde el archivo requirements.txt:
 
 ```
-pip install gtts pyttsx3
+pip install -r requirements.txt
 ```
 
 ## Ejecución en Windows

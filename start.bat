@@ -9,9 +9,9 @@ if not exist venv (
 REM Activar entorno virtual
 call venv\Scripts\activate.bat
 
-REM Instalar dependencias
+REM Instalar dependencias desde requirements.txt
 pip install --upgrade pip
-pip install gtts pyttsx3
+pip install -r requirements.txt
 
 REM Ejecutar el script principal
 python main.py
