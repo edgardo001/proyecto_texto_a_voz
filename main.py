@@ -132,46 +132,48 @@ def fusionar_voz_con_melodia(archivo_voz, archivo_melodia, archivo_salida, fade_
 if __name__ == "__main__":
     carpeta_in = "in"
     carpeta_out = "out"
-    nombre_archivo_entrada = os.path.join(carpeta_in, "entrada.txt")
-    print(f"Leyendo contenido del archivo: {nombre_archivo_entrada}")
-    contenido_del_archivo = leer_archivo_txt(nombre_archivo_entrada)
-    if contenido_del_archivo:
-        # Extraer el nombre base del archivo (sin extensión)
-        nombre_base = os.path.splitext(os.path.basename(nombre_archivo_entrada))[0]
-        # Generar nombres de archivo de salida en carpeta out
-        nombre_salida_pyttsx3 = os.path.join(carpeta_out, f"{nombre_base}_pyttsx3.wav")
-        nombre_salida_gtts = os.path.join(carpeta_out, f"{nombre_base}_gtts.mp3")
-        
-        # Demora unos pocos segundos para leer, el archivo es mas grande
-        print("\n--- Generando audio con pyttsx3 (sin internet) ---")
-        texto_a_voz_pyttsx3(contenido_del_archivo, nombre_archivo=nombre_salida_pyttsx3)
+    # Procesar todos los archivos .txt en la carpeta de entrada
+    archivos_txt = [f for f in os.listdir(carpeta_in) if f.endswith('.txt')]
+    if not archivos_txt:
+        print("No se encontraron archivos .txt en la carpeta 'in'.")
+    for nombre_archivo_entrada in archivos_txt:
+        ruta_archivo_entrada = os.path.join(carpeta_in, nombre_archivo_entrada)
+        print(f"\nLeyendo contenido del archivo: {ruta_archivo_entrada}")
+        contenido_del_archivo = leer_archivo_txt(ruta_archivo_entrada)
+        if contenido_del_archivo:
+            nombre_base = os.path.splitext(os.path.basename(nombre_archivo_entrada))[0]
+            nombre_salida_pyttsx3 = os.path.join(carpeta_out, f"{nombre_base}_pyttsx3.wav")
+            nombre_salida_gtts = os.path.join(carpeta_out, f"{nombre_base}_gtts.mp3")
+            
+            # Demora unos pocos segundos para leer, el archivo es mas grande
+            print("\n--- Generando audio con pyttsx3 (sin internet) ---")
+            #texto_a_voz_pyttsx3(contenido_del_archivo, nombre_archivo=nombre_salida_pyttsx3)
 
-        # Demora mucho en generar el audio, pero es mas humano, el archivo es mas pequeño
-        print("\n--- Generando audio con gTTS (requiere internet) ---")
-        texto_a_voz_gtts(contenido_del_archivo, nombre_archivo=nombre_salida_gtts)
-        
-        # Seleccionar una melodía aleatoria
-        melodias_disponibles = [f for f in os.listdir(carpeta_in) if f.startswith("melodia_") and f.endswith(".mp3")]
-        if melodias_disponibles:
-            archivo_melodia = os.path.join(carpeta_in, random.choice(melodias_disponibles))
-            print(f"Melodía seleccionada: {os.path.basename(archivo_melodia)}")
+            # Demora mucho en generar el audio, pero es mas humano, el archivo es mas pequeño
+            print("\n--- Generando audio con gTTS (requiere internet) ---")
+            texto_a_voz_gtts(contenido_del_archivo, nombre_archivo=nombre_salida_gtts)
+            
+            # Seleccionar una melodía aleatoria
+            melodias_disponibles = [f for f in os.listdir(carpeta_in) if f.startswith("melodia_") and f.endswith(".mp3")]
+            if melodias_disponibles:
+                archivo_melodia = os.path.join(carpeta_in, random.choice(melodias_disponibles))
+                print(f"Melodía seleccionada: {os.path.basename(archivo_melodia)}")
+            else:
+                archivo_melodia = None
+                print("No se encontró ninguna melodía en la carpeta 'in'.")
+            archivo_voz_gtts = nombre_salida_gtts
+            archivo_voz_pyttsx3 = nombre_salida_pyttsx3
+            archivo_salida_fusion_gtts = os.path.join(carpeta_out, f"{nombre_base}_gtts_melodia.mp3")
+            archivo_salida_fusion_pyttsx3 = os.path.join(carpeta_out, f"{nombre_base}_pyttsx3_melodia.wav")
+            if archivo_melodia and os.path.exists(archivo_melodia):
+                if os.path.exists(archivo_voz_gtts):
+                    print("\n--- Fusionando voz gTTS con melodía ---")
+                    fusionar_voz_con_melodia(archivo_voz_gtts, archivo_melodia, archivo_salida_fusion_gtts)
+                if os.path.exists(archivo_voz_pyttsx3):
+                    print("\n--- Fusionando voz pyttsx3 con melodía ---")
+                    fusionar_voz_con_melodia(archivo_voz_pyttsx3, archivo_melodia, archivo_salida_fusion_pyttsx3)
+            else:
+                print("No se encontró el archivo de melodía para fusionar.")
         else:
-            archivo_melodia = None
-            print("No se encontró ninguna melodía en la carpeta 'in'.")
-        archivo_voz_gtts = nombre_salida_gtts
-        archivo_voz_pyttsx3 = nombre_salida_pyttsx3
-        archivo_salida_fusion_gtts = os.path.join(carpeta_out, f"{nombre_base}_gtts_melodia.mp3")
-        archivo_salida_fusion_pyttsx3 = os.path.join(carpeta_out, f"{nombre_base}_pyttsx3_melodia.wav")
-        if archivo_melodia and os.path.exists(archivo_melodia):
-            if os.path.exists(archivo_voz_gtts):
-                print("\n--- Fusionando voz gTTS con melodía ---")
-                fusionar_voz_con_melodia(archivo_voz_gtts, archivo_melodia, archivo_salida_fusion_gtts)
-            if os.path.exists(archivo_voz_pyttsx3):
-                print("\n--- Fusionando voz pyttsx3 con melodía ---")
-                fusionar_voz_con_melodia(archivo_voz_pyttsx3, archivo_melodia, archivo_salida_fusion_pyttsx3)
-        else:
-            print("No se encontró el archivo de melodía para fusionar.")
-    else:
-        print("No se pudo leer el archivo de entrada. No se generará audio.")
-
+            print(f"No se pudo leer el archivo de entrada {nombre_archivo_entrada}. No se generará audio.")
     print("\nProceso completado. Revisa los archivos de audio generados en la carpeta 'out'.")
