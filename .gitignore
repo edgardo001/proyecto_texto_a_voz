@@ -77,3 +77,11 @@ htmlcov/
 *.bak
 *.backup
 *~ 
+
+# Conversores de audio
+ffmpeg.exe
+ffprobe.exe
+
+# Ignorar todo el contenido de la carpeta 'out' excepto el archivo .gitkeep
+out/*
+!out/.gitkeep

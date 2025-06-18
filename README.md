@@ -62,6 +62,22 @@ Para usarlo:
 start.bat
 ```
 
+## Nota sobre FFmpeg
+
+Para que la manipulación de archivos de audio funcione correctamente, es necesario tener los archivos `ffmpeg.exe` y `ffprobe.exe` en la raíz del proyecto. Si no se encuentran en la carpeta principal, debes descargarlos manualmente desde uno de los siguientes enlaces:
+
+- https://ffmpeg.org/download.html#build-windows
+- https://github.com/BtbN/FFmpeg-Builds/releases
+
+Extrae los ejecutables y colócalos en la carpeta raíz del proyecto para asegurar el correcto funcionamiento del procesamiento de audio.
+
+## Organización de archivos
+
+- Coloca los archivos de entrada (`entrada.txt` y `melodia.mp3`) en la carpeta `in`.
+- Los archivos de salida generados se guardarán automáticamente en la carpeta `out`.
+
+Asegúrate de que ambas carpetas existan en la raíz del proyecto. Si no existen, créalas manualmente o ejecuta el script para que se creen automáticamente.
+
 ## Notas
 
 - Puedes modificar el archivo `main.py` para ajustar la voz, el idioma o el formato de salida según tus necesidades.
