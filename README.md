@@ -73,10 +73,16 @@ Extrae los ejecutables y colócalos en la carpeta raíz del proyecto para asegur
 
 ## Organización de archivos
 
-- Coloca los archivos de entrada (`entrada.txt` y `melodia.mp3`) en la carpeta `in`.
+- Coloca los archivos de entrada (`entrada.txt`) en la carpeta `in`.
 - Los archivos de salida generados se guardarán automáticamente en la carpeta `out`.
 
 Asegúrate de que ambas carpetas existan en la raíz del proyecto. Si no existen, créalas manualmente o ejecuta el script para que se creen automáticamente.
+
+## Organización de archivos de melodías
+
+- Coloca todas las melodías que quieras usar en la carpeta `melodias` en la raíz del proyecto.
+- Las melodías pueden tener cualquier nombre, pero deben estar en formato `.mp3`.
+- El programa seleccionará melodías aleatoriamente de esta carpeta para mezclarlas con la voz.
 
 ## Notas
 
