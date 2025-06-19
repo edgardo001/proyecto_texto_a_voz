@@ -128,8 +128,44 @@ def fusionar_voz_con_melodia(archivo_voz, archivo_melodia, archivo_salida, fade_
     except Exception as e:
         print(f"Error al fusionar audio: {e}")
 
+# --- Función para fusionar la voz con varias melodías aleatorias ---
+def fusionar_voz_con_melodias_aleatorias(archivo_voz, carpeta_melodias, archivo_salida, fade_ms=5000, crossfade_ms=2000):
+    """
+    Fusiona la voz con varias melodías aleatorias, usando cada melodía completa y cambiando a otra diferente cuando se acabe.
+    """
+    try:
+        voz = AudioSegment.from_file(archivo_voz)
+        duracion_voz = len(voz)
+        melodias_disponibles = [f for f in os.listdir(carpeta_melodias) if f.startswith("melodia_") and f.endswith(".mp3")]
+        if not melodias_disponibles:
+            print("No hay melodías disponibles en la carpeta de melodías.")
+            return
+        melodia_final = AudioSegment.empty()
+        usados = set()
+        while len(melodia_final) < duracion_voz:
+            # Elegir melodía aleatoria que no se haya usado en la secuencia reciente
+            posibles = [m for m in melodias_disponibles if m not in usados]
+            if not posibles:
+                usados = set()
+                posibles = melodias_disponibles
+            melodia_nombre = random.choice(posibles)
+            usados.add(melodia_nombre)
+            melodia = AudioSegment.from_file(os.path.join(carpeta_melodias, melodia_nombre))
+            # Bajar volumen y aplicar fade in/out solo en los extremos
+            melodia = melodia - 17
+            if len(melodia_final) == 0:
+                melodia = melodia.fade_in(fade_ms)
+            melodia_final = melodia_final.append(melodia, crossfade=crossfade_ms)
+        melodia_final = melodia_final[:duracion_voz].fade_out(fade_ms)
+        combinado = melodia_final.overlay(voz)
+        combinado.export(archivo_salida, format="mp3" if archivo_salida.endswith(".mp3") else "wav")
+        print(f"Archivo fusionado generado: {archivo_salida}")
+    except Exception as e:
+        print(f"Error al fusionar audio con melodías aleatorias: {e}")
+
 # --- Lógica principal ---
 if __name__ == "__main__":
+    carpeta_melodias = "melodias"
     carpeta_in = "in"
     carpeta_out = "out"
     # Procesar todos los archivos .txt en la carpeta de entrada
@@ -146,7 +182,7 @@ if __name__ == "__main__":
             nombre_salida_gtts = os.path.join(carpeta_out, f"{nombre_base}_gtts.mp3")
             
             # Demora unos pocos segundos para leer, el archivo es mas grande
-            print("\n--- Generando audio con pyttsx3 (sin internet) ---")
+            #print("\n--- Generando audio con pyttsx3 (sin internet) ---")
             #texto_a_voz_pyttsx3(contenido_del_archivo, nombre_archivo=nombre_salida_pyttsx3)
 
             # Demora mucho en generar el audio, pero es mas humano, el archivo es mas pequeño
@@ -154,9 +190,9 @@ if __name__ == "__main__":
             texto_a_voz_gtts(contenido_del_archivo, nombre_archivo=nombre_salida_gtts)
             
             # Seleccionar una melodía aleatoria
-            melodias_disponibles = [f for f in os.listdir(carpeta_in) if f.startswith("melodia_") and f.endswith(".mp3")]
+            melodias_disponibles = [f for f in os.listdir(carpeta_melodias) if f.startswith("melodia_") and f.endswith(".mp3")]
             if melodias_disponibles:
-                archivo_melodia = os.path.join(carpeta_in, random.choice(melodias_disponibles))
+                archivo_melodia = os.path.join(carpeta_melodias, random.choice(melodias_disponibles))
                 print(f"Melodía seleccionada: {os.path.basename(archivo_melodia)}")
             else:
                 archivo_melodia = None
