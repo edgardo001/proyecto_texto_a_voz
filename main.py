@@ -113,12 +113,13 @@ def fusionar_voz_con_melodia(archivo_voz, archivo_melodia, archivo_salida, fade_
     """
     try:
         voz = AudioSegment.from_file(archivo_voz)
+        voz = voz + 6
         melodia = AudioSegment.from_file(archivo_melodia)
         duracion_voz = len(voz)
         # Repetir la melodía con crossfade
         melodia_bucle = bucle_melodia_crossfade(melodia, duracion_voz, crossfade_ms)
         # Bajar el volumen de la melodía a la mitad (~-20 dB)
-        melodia_bucle = melodia_bucle - 17
+        melodia_bucle = melodia_bucle - 20
         # Aplicar fade in y fade out
         melodia_bucle = melodia_bucle.fade_in(fade_ms).fade_out(fade_ms)
         # Mezclar la melodía con la voz (voz en primer plano)
@@ -135,15 +136,15 @@ def fusionar_voz_con_melodias_aleatorias(archivo_voz, carpeta_melodias, archivo_
     """
     try:
         voz = AudioSegment.from_file(archivo_voz)
+        voz = voz + 6
         duracion_voz = len(voz)
-        melodias_disponibles = [f for f in os.listdir(carpeta_melodias) if f.startswith("melodia_") and f.endswith(".mp3")]
+        melodias_disponibles = [f for f in os.listdir(carpeta_melodias) if f.endswith(".mp3")]
         if not melodias_disponibles:
             print("No hay melodías disponibles en la carpeta de melodías.")
             return
         melodia_final = AudioSegment.empty()
         usados = set()
         while len(melodia_final) < duracion_voz:
-            # Elegir melodía aleatoria que no se haya usado en la secuencia reciente
             posibles = [m for m in melodias_disponibles if m not in usados]
             if not posibles:
                 usados = set()
@@ -151,12 +152,14 @@ def fusionar_voz_con_melodias_aleatorias(archivo_voz, carpeta_melodias, archivo_
             melodia_nombre = random.choice(posibles)
             usados.add(melodia_nombre)
             melodia = AudioSegment.from_file(os.path.join(carpeta_melodias, melodia_nombre))
-            # Bajar volumen y aplicar fade in/out solo en los extremos
-            melodia = melodia - 17
-            if len(melodia_final) == 0:
-                melodia = melodia.fade_in(fade_ms)
-            melodia_final = melodia_final.append(melodia, crossfade=crossfade_ms)
-        melodia_final = melodia_final[:duracion_voz].fade_out(fade_ms)
+            # Bajar el volumen de la melodía a la mitad (~-20 dB)
+            melodia = melodia - 20
+            # Solo aplicar crossfade si ambos segmentos son suficientemente largos
+            if len(melodia_final) > crossfade_ms and len(melodia) > crossfade_ms:
+                melodia_final = melodia_final.append(melodia, crossfade=crossfade_ms)
+            else:
+                melodia_final += melodia
+        melodia_final = melodia_final[:duracion_voz].fade_in(fade_ms).fade_out(fade_ms)
         combinado = melodia_final.overlay(voz)
         combinado.export(archivo_salida, format="mp3" if archivo_salida.endswith(".mp3") else "wav")
         print(f"Archivo fusionado generado: {archivo_salida}")
@@ -190,7 +193,7 @@ if __name__ == "__main__":
             texto_a_voz_gtts(contenido_del_archivo, nombre_archivo=nombre_salida_gtts)
             
             # Seleccionar una melodía aleatoria
-            melodias_disponibles = [f for f in os.listdir(carpeta_melodias) if f.startswith("melodia_") and f.endswith(".mp3")]
+            melodias_disponibles = [f for f in os.listdir(carpeta_melodias) if f.endswith(".mp3")]
             if melodias_disponibles:
                 archivo_melodia = os.path.join(carpeta_melodias, random.choice(melodias_disponibles))
                 print(f"Melodía seleccionada: {os.path.basename(archivo_melodia)}")
@@ -204,10 +207,10 @@ if __name__ == "__main__":
             if archivo_melodia and os.path.exists(archivo_melodia):
                 if os.path.exists(archivo_voz_gtts):
                     print("\n--- Fusionando voz gTTS con melodía ---")
-                    fusionar_voz_con_melodia(archivo_voz_gtts, archivo_melodia, archivo_salida_fusion_gtts)
+                    fusionar_voz_con_melodias_aleatorias(archivo_voz_gtts, carpeta_melodias, archivo_salida_fusion_gtts)
                 if os.path.exists(archivo_voz_pyttsx3):
                     print("\n--- Fusionando voz pyttsx3 con melodía ---")
-                    fusionar_voz_con_melodia(archivo_voz_pyttsx3, archivo_melodia, archivo_salida_fusion_pyttsx3)
+                    fusionar_voz_con_melodias_aleatorias(archivo_voz_pyttsx3, carpeta_melodias, archivo_salida_fusion_pyttsx3)
             else:
                 print("No se encontró el archivo de melodía para fusionar.")
         else:
