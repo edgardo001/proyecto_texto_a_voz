@@ -10,6 +10,11 @@ from google import genai
 from google.genai import types
 from pydub import AudioSegment
 
+from kokoro_module import texto_a_voz_kokoro
+from qwen_module import texto_a_voz_qwen
+from piper_module import texto_a_voz_piper
+from vits_module import texto_a_voz_vits
+
 
 GEMINI_TTS_MODEL = "gemini-3.1-flash-tts-preview"
 DEFAULT_VOICE = "Kore"
@@ -208,29 +213,40 @@ def fusionar_voz_con_melodias_aleatorias(
 
 def motores_desde_arg(motor_arg):
     if motor_arg == "todos":
-        return ["gtts", "pyttsx3", "gemini"]
+        return ["gtts", "pyttsx3", "gemini", "kokoro", "qwen", "piper", "vits"]
     return [motor_arg]
 
 
 def extension_por_motor(motor):
-    if motor == "pyttsx3":
+    if motor in ["pyttsx3", "kokoro", "qwen", "piper", "vits"]:
         return "wav"
     return "mp3"
 
 
-def generar_audio_por_motor(motor, texto, ruta_salida):
+def generar_audio_por_motor(motor, texto, ruta_salida, voz=None):
     if motor == "gtts":
         return texto_a_voz_gtts(texto, nombre_archivo=ruta_salida)
     if motor == "pyttsx3":
         return texto_a_voz_pyttsx3(texto, nombre_archivo=ruta_salida)
     if motor == "gemini":
-        return texto_a_voz_gemini(texto, nombre_archivo=ruta_salida)
+        return texto_a_voz_gemini(texto, nombre_archivo=ruta_salida, voz=voz or DEFAULT_VOICE)
+    if motor == "kokoro":
+        if voz:
+            return texto_a_voz_kokoro(texto, nombre_archivo=ruta_salida, voz=voz)
+        return texto_a_voz_kokoro(texto, nombre_archivo=ruta_salida)
+    if motor == "qwen":
+        return texto_a_voz_qwen(texto, nombre_archivo=ruta_salida, voz=voz or "Ryan", lang="Spanish")
+    if motor == "piper":
+        return texto_a_voz_piper(texto, nombre_archivo=ruta_salida)
+    if motor == "vits":
+        return texto_a_voz_vits(texto, nombre_archivo=ruta_salida)
     print(f"Motor no soportado: {motor}")
     return False
 
 
 def procesar_archivos(
     motor,
+    voz=None,
     carpeta_in="in",
     carpeta_out="out",
     carpeta_melodias="melodias",
@@ -263,7 +279,7 @@ def procesar_archivos(
             )
 
             print(f"\n--- Generando audio con {motor_actual} ---")
-            ok_tts = generar_audio_por_motor(motor_actual, contenido, salida_voz)
+            ok_tts = generar_audio_por_motor(motor_actual, contenido, salida_voz, voz=voz)
 
             if fusionar and ok_tts and os.path.exists(salida_voz):
                 print(f"--- Fusionando voz {motor_actual} con melodias ---")
@@ -284,9 +300,13 @@ def parse_args():
     )
     parser.add_argument(
         "--motor",
-        choices=["gtts", "pyttsx3", "gemini", "todos"],
+        choices=["gtts", "pyttsx3", "gemini", "kokoro", "qwen", "piper", "vits", "todos"],
         default="gtts",
         help="Motor de voz a usar (default: gtts).",
+    )
+    parser.add_argument(
+        "--voz",
+        help="Nombre de la voz a usar (ej: ef_dora para Kokoro o Kore para Gemini).",
     )
     parser.add_argument(
         "--sin-fusion",
@@ -303,6 +323,7 @@ if __name__ == "__main__":
     args = parse_args()
     procesar_archivos(
         motor=args.motor,
+        voz=args.voz,
         carpeta_in=args.carpeta_in,
         carpeta_out=args.carpeta_out,
         carpeta_melodias=args.carpeta_melodias,
