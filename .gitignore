@@ -82,6 +82,18 @@ htmlcov/
 ffmpeg.exe
 ffprobe.exe
 
+# Ignorar todo el contenido de la carpeta 'in' excepto el archivo .gitkeep
+in/*
+!in/.gitkeep
+
 # Ignorar todo el contenido de la carpeta 'out' excepto el archivo .gitkeep
 out/*
 !out/.gitkeep
+
+# Ignorar todo el contenido de la carpeta 'models' excepto el archivo .gitkeep
+models/*
+!models/.gitkeep
+
+# Ignorar todo el contenido de la carpeta 'melodias' excepto el archivo .gitkeep
+melodias/*
+!melodias/.gitkeep
