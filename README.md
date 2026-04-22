@@ -35,15 +35,15 @@ Este proyecto es una solución integral para convertir texto en audio utilizando
 
 Tiempos medidos con un archivo de **201 palabras** en un Intel Core Ultra (Windows 11). Los tiempos incluyen solo la generación de voz, sin fusión con melodías.
 
-| Motor | Primera ejecución (con descarga) | Tiempo (con cache) | Velocidad relativa |
-|-------|----------------------------------|-------------------|--------------------|
-| `pyttsx3` | 1.90 s | 0.78 s | Instantáneo |
-| `gtts` | 4.54 s | 5.07 s | Muy rápido (requiere internet) |
-| `piper` | 11.19 s | 5.32 s | Muy rápido |
-| `vits` | 30.04 s | 12.79 s | Rápido |
-| `kokoro` | 36.80 s | 20.56 s | Moderado |
-| `gemini` | 51.54 s | 47.03 s | Lento (requiere internet + API key) |
-| `qwen` | 9 min 23 s | 8 min 32 s | Muy lento (máxima calidad local) |
+| Motor | Primera ejecución (con descarga) | Tiempo (con cache) | Duración del audio | Velocidad relativa |
+|-------|----------------------------------|-------------------|--------------------|--------------------|
+| `pyttsx3` | 1.90 s | 0.78 s | 0 min 59 s | Instantáneo |
+| `gtts` | 4.54 s | 5.07 s | 1 min 30 s | Muy rápido (requiere internet) |
+| `piper` | 11.19 s | 5.32 s | 1 min 19 s | Muy rápido |
+| `vits` | 30.04 s | 12.79 s | 0 min 54 s | Rápido |
+| `kokoro` | 36.80 s | 20.56 s | 1 min 04 s | Moderado |
+| `gemini` | 51.54 s | 47.03 s | 1 min 22 s | Lento (requiere internet + API key) |
+| `qwen` | 9 min 23 s | 8 min 32 s | 1 min 50 s | Muy lento (máxima calidad local) |
 
 > **Nota:** La primera ejecución de `piper`, `vits`, `kokoro` y `qwen` incluye la descarga de modelos, que se almacenan en `models/` para ejecuciones posteriores. `gtts`, `pyttsx3` y `gemini` no descargan modelos locales. Los tiempos varían según el hardware y escalan proporcionalmente con la cantidad de palabras.
 

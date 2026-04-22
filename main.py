@@ -235,7 +235,7 @@ def generar_audio_por_motor(motor, texto, ruta_salida, voz=None):
             return texto_a_voz_kokoro(texto, nombre_archivo=ruta_salida, voz=voz)
         return texto_a_voz_kokoro(texto, nombre_archivo=ruta_salida)
     if motor == "qwen":
-        return texto_a_voz_qwen(texto, nombre_archivo=ruta_salida, voz=voz or "Ryan", lang="Spanish")
+        return texto_a_voz_qwen(texto, nombre_archivo=ruta_salida, voz=voz or "Vivian", lang="Spanish")
     if motor == "piper":
         return texto_a_voz_piper(texto, nombre_archivo=ruta_salida)
     if motor == "vits":
