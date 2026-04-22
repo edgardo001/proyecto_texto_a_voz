@@ -3,3 +3,13 @@ pyttsx3
 pydub
 google-genai
 audioop-lts
+kokoro-onnx
+onnxruntime
+soundfile
+requests
+qwen-tts
+torch
+transformers
+accelerate
+piper-tts
+sherpa-onnx
