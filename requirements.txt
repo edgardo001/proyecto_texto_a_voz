@@ -1,3 +1,5 @@
 gtts
 pyttsx3
 pydub
+google-genai
+audioop-lts

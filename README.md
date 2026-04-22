@@ -1,90 +1,97 @@
 # Proyecto Texto a Voz
 
-Este proyecto convierte texto en archivos de audio utilizando Python. Permite transformar el contenido de un archivo de texto en voz, generando archivos de audio en diferentes formatos.
+Este proyecto convierte texto en audio y opcionalmente lo fusiona con melodias de fondo.
 
-## Descripción
+## Script principal
 
-El proyecto lee el texto desde un archivo (`entrada.txt`) y lo convierte en audio usando diferentes librerías de síntesis de voz, como `gtts` y `pyttsx3`. Los archivos de audio generados pueden ser utilizados para diferentes propósitos, como accesibilidad o automatización.
+El unico script de ejecucion es:
+
+- `main.py`
+
+## Motores disponibles
+
+- `gtts`: genera MP3 con Google Text-to-Speech.
+- `pyttsx3`: genera WAV con el motor local del sistema.
+- `gemini`: genera MP3 con Gemini TTS (Google AI Studio).
+- `todos`: ejecuta `gtts`, `pyttsx3` y `gemini` en secuencia.
 
 ## Requisitos
 
 - Python 3.x
+- Dependencias en `requirements.txt`
+- FFmpeg/FFprobe para procesamiento de audio con `pydub`
 
-## Instalación y uso de entorno virtual (venv)
+Instalacion:
 
-Se recomienda ejecutar este proyecto dentro de un entorno virtual de Python para evitar conflictos de dependencias. Para crear y activar un entorno virtual en Windows, sigue estos pasos:
-
-1. Abre una terminal (PowerShell o CMD) en la carpeta del proyecto.
-2. Crea el entorno virtual:
-
-```
-python -m venv venv
-```
-
-3. Activa el entorno virtual:
-
-- En PowerShell:
-```
-.\venv\Scripts\Activate.ps1
-```
-- En CMD:
-```
-venv\Scripts\activate.bat
-```
-
-4. Instala las dependencias necesarias desde el archivo requirements.txt:
-
-```
+```bash
 pip install -r requirements.txt
 ```
 
-## Ejecución en Windows
+## Estructura de carpetas
 
-### Opción 1: Manual
+- `in/`: archivos `.txt` de entrada
+- `out/`: audios generados
+- `melodias/`: pistas `.mp3` para fusion
 
-1. Asegúrate de tener el archivo `entrada.txt` con el texto que deseas convertir a voz.
-2. Con el entorno virtual activado, ejecuta el script principal:
+## Configuracion para Gemini
 
+Si usas `--motor gemini` o `--motor todos`, define tu API key:
+
+```powershell
+$env:GEMINI_API_KEY="TU_API_KEY"
 ```
+
+## Uso manual (Python)
+
+Por defecto usa `gtts`:
+
+```bash
 python main.py
 ```
 
-3. Se generarán archivos de audio (por ejemplo, `entrada_gtts.mp3` y `entrada_pyttsx3.wav`) en la misma carpeta.
+Motor especifico:
 
-### Opción 2: Usando el script start.bat
-
-Puedes automatizar todo el proceso ejecutando el archivo `start.bat` incluido en el proyecto. Este script creará y activará el entorno virtual, instalará las dependencias y ejecutará la aplicación automáticamente.
-
-Para usarlo:
-
-1. Haz doble clic en `start.bat` o ejecútalo desde la terminal con:
+```bash
+python main.py --motor gtts
+python main.py --motor pyttsx3
+python main.py --motor gemini
+python main.py --motor todos
 ```
+
+Sin fusion con melodias:
+
+```bash
+python main.py --motor gemini --sin-fusion
+```
+
+Cambiar carpetas:
+
+```bash
+python main.py --motor gtts --in in --out out --melodias melodias
+```
+
+## Uso con `start.bat`
+
+`start.bat` crea/activa `venv`, instala dependencias y ejecuta `main.py`.
+
+Ejemplos:
+
+```bat
 start.bat
+start.bat gtts
+start.bat pyttsx3
+start.bat gemini
+start.bat todos
 ```
 
-## Nota sobre FFmpeg
+Nota: si eliges `gemini` o `todos` y no existe `GEMINI_API_KEY`, el script la solicita.
 
-Para que la manipulación de archivos de audio funcione correctamente, es necesario tener los archivos `ffmpeg.exe` y `ffprobe.exe` en la raíz del proyecto. Si no se encuentran en la carpeta principal, debes descargarlos manualmente desde uno de los siguientes enlaces:
+## Salidas esperadas
 
-- https://ffmpeg.org/download.html#build-windows
-- https://github.com/BtbN/FFmpeg-Builds/releases
+Por cada archivo `.txt` en `in/` se generan archivos en `out/` con formato:
 
-Extrae los ejecutables y colócalos en la carpeta raíz del proyecto para asegurar el correcto funcionamiento del procesamiento de audio.
+- `nombre_gtts.mp3`
+- `nombre_pyttsx3.wav`
+- `nombre_gemini.mp3`
+- y versiones fusionadas: `nombre_<motor>_melodia.<ext>` (si no usas `--sin-fusion`)
 
-## Organización de archivos
-
-- Coloca los archivos de entrada (`entrada.txt`) en la carpeta `in`.
-- Los archivos de salida generados se guardarán automáticamente en la carpeta `out`.
-
-Asegúrate de que ambas carpetas existan en la raíz del proyecto. Si no existen, créalas manualmente o ejecuta el script para que se creen automáticamente.
-
-## Organización de archivos de melodías
-
-- Coloca todas las melodías que quieras usar en la carpeta `melodias` en la raíz del proyecto.
-- Las melodías pueden tener cualquier nombre, pero deben estar en formato `.mp3`.
-- El programa seleccionará melodías aleatoriamente de esta carpeta para mezclarlas con la voz.
-
-## Notas
-
-- Puedes modificar el archivo `main.py` para ajustar la voz, el idioma o el formato de salida según tus necesidades.
-- Si tienes problemas con las voces en `pyttsx3`, asegúrate de tener instalados los motores de voz de Windows.
