@@ -1,40 +1,38 @@
+import argparse
+import functools
+import os
+import random
+import time
+
 from gtts import gTTS
 import pyttsx3
-import os
-import time
-import functools
-import random
+from google import genai
+from google.genai import types
 from pydub import AudioSegment
-from pydub.playback import play
 
-# --- Decorador para medir tiempo de ejecución ---
+
+GEMINI_TTS_MODEL = "gemini-3.1-flash-tts-preview"
+DEFAULT_VOICE = "Kore"
+MAX_CHARS_PER_CHUNK = 2500
+
+
 def medir_tiempo(func):
-    """
-    Decorador que mide el tiempo de ejecución de una función.
-    """
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         inicio = time.time()
-        print(f"⏱️  Iniciando {func.__name__}...")
-        
+        print(f"Iniciando {func.__name__}...")
         resultado = func(*args, **kwargs)
-        
         fin = time.time()
-        tiempo_total = fin - inicio
-        print(f"✅ {func.__name__} completado en {tiempo_total:.2f} segundos")
-        
+        print(f"{func.__name__} completado en {fin - inicio:.2f} segundos")
         return resultado
+
     return wrapper
 
-# --- Función para leer el archivo de texto ---
+
 def leer_archivo_txt(ruta_archivo):
-    """
-    Lee el contenido de un archivo de texto y lo devuelve como una cadena.
-    """
     try:
-        with open(ruta_archivo, 'r', encoding='utf-8') as file:
-            contenido = file.read()
-        return contenido
+        with open(ruta_archivo, "r", encoding="utf-8") as file:
+            return file.read()
     except FileNotFoundError:
         print(f"Error: El archivo '{ruta_archivo}' no fue encontrado.")
         return None
@@ -42,106 +40,141 @@ def leer_archivo_txt(ruta_archivo):
         print(f"Error al leer el archivo '{ruta_archivo}': {e}")
         return None
 
-# --- Función para texto a voz con gTTS ---
+
 @medir_tiempo
-def texto_a_voz_gtts(texto, idioma='es', nombre_archivo="salida_gtts.mp3"):
-    """
-    Convierte texto a voz usando gTTS y guarda el audio en un archivo MP3.
-    """
+def texto_a_voz_gtts(texto, idioma="es", nombre_archivo="salida_gtts.mp3"):
     if not texto:
         print("No hay texto para generar con gTTS.")
-        return
-
+        return False
     try:
         tts = gTTS(text=texto, lang=idioma, slow=False)
         tts.save(nombre_archivo)
         print(f"Audio '{nombre_archivo}' generado exitosamente con gTTS.")
+        return True
     except Exception as e:
         print(f"Error al generar audio con gTTS: {e}")
+        return False
 
-# --- Función para texto a voz con pyttsx3 ---
+
 @medir_tiempo
-def texto_a_voz_pyttsx3(texto, nombre_archivo="salida_pyttsx3.wav"): # pyttsx3 prefiere WAV
-    """
-    Convierte texto a voz usando pyttsx3. Puede reproducirlo directamente
-    o intentar guardarlo en un archivo (usualmente WAV).
-    """
+def texto_a_voz_pyttsx3(texto, nombre_archivo="salida_pyttsx3.wav"):
     if not texto:
         print("No hay texto para generar con pyttsx3.")
-        return
-
+        return False
     try:
         engine = pyttsx3.init()
-
-        # Opcional: Configurar la velocidad y el volumen
-        engine.setProperty('rate', 200)
-        engine.setProperty('volume', 0.9)
-
-        # Para que hable directamente
-        #print(f"Reproduciendo con pyttsx3...")
-        #engine.say(texto)
-        #engine.runAndWait()
-
-        # Para guardar el audio en un archivo (generalmente WAV, no MP3 directo)
+        engine.setProperty("rate", 200)
+        engine.setProperty("volume", 0.9)
         engine.save_to_file(texto, nombre_archivo)
         engine.runAndWait()
         print(f"Audio '{nombre_archivo}' guardado exitosamente con pyttsx3.")
-
+        return True
     except Exception as e:
         print(f"Error al generar audio con pyttsx3: {e}")
+        return False
 
-# --- Función para repetir la melodía con crossfade ---
-def bucle_melodia_crossfade(melodia, duracion_objetivo, crossfade_ms=2000):
-    """
-    Repite la melodía hasta alcanzar la duración objetivo, aplicando crossfade solo entre repeticiones completas.
-    """
-    if len(melodia) == 0:
-        return AudioSegment.silent(duration=duracion_objetivo)
-    repeticiones = max(1, (duracion_objetivo // len(melodia)))
-    resultado = melodia
-    for _ in range(1, repeticiones):
-        resultado = resultado.append(melodia, crossfade=crossfade_ms)
-    restante = duracion_objetivo - len(resultado)
-    if restante > 0:
-        resultado += melodia[:restante]
-    return resultado[:duracion_objetivo]
 
-# --- Función para fusionar la voz generada con una melodía en bucle ---
-def fusionar_voz_con_melodia(archivo_voz, archivo_melodia, archivo_salida, fade_ms=5000, crossfade_ms=2000):
-    """
-    Fusiona la voz generada con una melodía en bucle, aplicando fade in/out y crossfade entre repeticiones.
-    """
+def dividir_texto(texto, max_chars=MAX_CHARS_PER_CHUNK):
+    texto = (texto or "").strip()
+    if not texto:
+        return []
+
+    partes = []
+    actual = []
+    actual_len = 0
+    for palabra in texto.split():
+        extra = len(palabra) + (1 if actual else 0)
+        if actual_len + extra > max_chars:
+            partes.append(" ".join(actual))
+            actual = [palabra]
+            actual_len = len(palabra)
+        else:
+            actual.append(palabra)
+            actual_len += extra
+
+    if actual:
+        partes.append(" ".join(actual))
+    return partes
+
+
+def _pcm_a_audio_segment(pcm_bytes):
+    return AudioSegment(
+        data=pcm_bytes,
+        sample_width=2,
+        frame_rate=24000,
+        channels=1,
+    )
+
+
+@medir_tiempo
+def texto_a_voz_gemini(
+    texto,
+    nombre_archivo="salida_gemini_tts.mp3",
+    modelo=GEMINI_TTS_MODEL,
+    voz=DEFAULT_VOICE,
+):
+    if not texto:
+        print("No hay texto para generar con Gemini TTS.")
+        return False
+
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        print("Falta configurar la variable de entorno GEMINI_API_KEY.")
+        return False
+
     try:
-        voz = AudioSegment.from_file(archivo_voz)
-        voz = voz + 6
-        melodia = AudioSegment.from_file(archivo_melodia)
-        duracion_voz = len(voz)
-        # Repetir la melodía con crossfade
-        melodia_bucle = bucle_melodia_crossfade(melodia, duracion_voz, crossfade_ms)
-        # Bajar el volumen de la melodía a la mitad (~-20 dB)
-        melodia_bucle = melodia_bucle - 20
-        # Aplicar fade in y fade out
-        melodia_bucle = melodia_bucle.fade_in(fade_ms).fade_out(fade_ms)
-        # Mezclar la melodía con la voz (voz en primer plano)
-        combinado = melodia_bucle.overlay(voz)
-        combinado.export(archivo_salida, format="mp3" if archivo_salida.endswith(".mp3") else "wav")
-        print(f"Archivo fusionado generado: {archivo_salida}")
+        client = genai.Client(api_key=api_key)
+        segmentos = dividir_texto(texto)
+        if not segmentos:
+            print("El texto no contiene contenido util para sintetizar.")
+            return False
+
+        audio_final = AudioSegment.empty()
+        for i, segmento in enumerate(segmentos, start=1):
+            print(f"Generando segmento {i}/{len(segmentos)} con Gemini...")
+            response = client.models.generate_content(
+                model=modelo,
+                contents=segmento,
+                config=types.GenerateContentConfig(
+                    response_modalities=["AUDIO"],
+                    speech_config=types.SpeechConfig(
+                        voice_config=types.VoiceConfig(
+                            prebuilt_voice_config=types.PrebuiltVoiceConfig(
+                                voice_name=voz
+                            )
+                        )
+                    ),
+                ),
+            )
+            pcm = response.candidates[0].content.parts[0].inline_data.data
+            audio_final += _pcm_a_audio_segment(pcm)
+
+        formato = "mp3" if nombre_archivo.lower().endswith(".mp3") else "wav"
+        audio_final.export(nombre_archivo, format=formato)
+        print(f"Audio '{nombre_archivo}' generado exitosamente con Gemini TTS.")
+        return True
     except Exception as e:
-        print(f"Error al fusionar audio: {e}")
+        print(f"Error al generar audio con Gemini TTS: {e}")
+        return False
 
-# --- Función para fusionar la voz con varias melodías aleatorias ---
-def fusionar_voz_con_melodias_aleatorias(archivo_voz, carpeta_melodias, archivo_salida, fade_ms=5000, crossfade_ms=2000):
-    """
-    Fusiona la voz con varias melodías aleatorias, usando cada melodía completa y cambiando a otra diferente cuando se acabe.
-    """
+
+def fusionar_voz_con_melodias_aleatorias(
+    archivo_voz,
+    carpeta_melodias,
+    archivo_salida,
+    fade_ms=5000,
+    crossfade_ms=2000,
+):
     try:
-        voz = AudioSegment.from_file(archivo_voz)
-        voz = voz + 6
+        voz = AudioSegment.from_file(archivo_voz) + 6
         duracion_voz = len(voz)
-        melodias_disponibles = [f for f in os.listdir(carpeta_melodias) if f.endswith(".mp3")]
+        melodias_disponibles = [
+            f for f in os.listdir(carpeta_melodias) if f.lower().endswith(".mp3")
+        ]
         if not melodias_disponibles:
-            print("No hay melodías disponibles en la carpeta de melodías.")
-            return
+            print("No hay melodias disponibles en la carpeta de melodias.")
+            return False
+
         melodia_final = AudioSegment.empty()
         usados = set()
         while len(melodia_final) < duracion_voz:
@@ -149,70 +182,129 @@ def fusionar_voz_con_melodias_aleatorias(archivo_voz, carpeta_melodias, archivo_
             if not posibles:
                 usados = set()
                 posibles = melodias_disponibles
+
             melodia_nombre = random.choice(posibles)
             usados.add(melodia_nombre)
-            melodia = AudioSegment.from_file(os.path.join(carpeta_melodias, melodia_nombre))
-            # Bajar el volumen de la melodía a la mitad (~-20 dB)
+            melodia = AudioSegment.from_file(
+                os.path.join(carpeta_melodias, melodia_nombre)
+            )
             melodia = melodia - 20
-            # Solo aplicar crossfade si ambos segmentos son suficientemente largos
+
             if len(melodia_final) > crossfade_ms and len(melodia) > crossfade_ms:
                 melodia_final = melodia_final.append(melodia, crossfade=crossfade_ms)
             else:
                 melodia_final += melodia
+
         melodia_final = melodia_final[:duracion_voz].fade_in(fade_ms).fade_out(fade_ms)
         combinado = melodia_final.overlay(voz)
-        combinado.export(archivo_salida, format="mp3" if archivo_salida.endswith(".mp3") else "wav")
+        formato = "mp3" if archivo_salida.lower().endswith(".mp3") else "wav"
+        combinado.export(archivo_salida, format=formato)
         print(f"Archivo fusionado generado: {archivo_salida}")
+        return True
     except Exception as e:
-        print(f"Error al fusionar audio con melodías aleatorias: {e}")
+        print(f"Error al fusionar audio con melodias aleatorias: {e}")
+        return False
 
-# --- Lógica principal ---
-if __name__ == "__main__":
-    carpeta_melodias = "melodias"
-    carpeta_in = "in"
-    carpeta_out = "out"
-    # Procesar todos los archivos .txt en la carpeta de entrada
-    archivos_txt = [f for f in os.listdir(carpeta_in) if f.endswith('.txt')]
+
+def motores_desde_arg(motor_arg):
+    if motor_arg == "todos":
+        return ["gtts", "pyttsx3", "gemini"]
+    return [motor_arg]
+
+
+def extension_por_motor(motor):
+    if motor == "pyttsx3":
+        return "wav"
+    return "mp3"
+
+
+def generar_audio_por_motor(motor, texto, ruta_salida):
+    if motor == "gtts":
+        return texto_a_voz_gtts(texto, nombre_archivo=ruta_salida)
+    if motor == "pyttsx3":
+        return texto_a_voz_pyttsx3(texto, nombre_archivo=ruta_salida)
+    if motor == "gemini":
+        return texto_a_voz_gemini(texto, nombre_archivo=ruta_salida)
+    print(f"Motor no soportado: {motor}")
+    return False
+
+
+def procesar_archivos(
+    motor,
+    carpeta_in="in",
+    carpeta_out="out",
+    carpeta_melodias="melodias",
+    fusionar=True,
+):
+    os.makedirs(carpeta_out, exist_ok=True)
+    archivos_txt = [f for f in os.listdir(carpeta_in) if f.lower().endswith(".txt")]
     if not archivos_txt:
         print("No se encontraron archivos .txt en la carpeta 'in'.")
+        return
+
+    motores = motores_desde_arg(motor)
     for nombre_archivo_entrada in archivos_txt:
         ruta_archivo_entrada = os.path.join(carpeta_in, nombre_archivo_entrada)
         print(f"\nLeyendo contenido del archivo: {ruta_archivo_entrada}")
-        contenido_del_archivo = leer_archivo_txt(ruta_archivo_entrada)
-        if contenido_del_archivo:
-            nombre_base = os.path.splitext(os.path.basename(nombre_archivo_entrada))[0]
-            nombre_salida_pyttsx3 = os.path.join(carpeta_out, f"{nombre_base}_pyttsx3.wav")
-            nombre_salida_gtts = os.path.join(carpeta_out, f"{nombre_base}_gtts.mp3")
-            
-            # Demora unos pocos segundos para leer, el archivo es mas grande
-            #print("\n--- Generando audio con pyttsx3 (sin internet) ---")
-            #texto_a_voz_pyttsx3(contenido_del_archivo, nombre_archivo=nombre_salida_pyttsx3)
+        contenido = leer_archivo_txt(ruta_archivo_entrada)
+        if not contenido:
+            print(
+                f"No se pudo leer el archivo de entrada {nombre_archivo_entrada}. "
+                "No se generara audio."
+            )
+            continue
 
-            # Demora mucho en generar el audio, pero es mas humano, el archivo es mas pequeño
-            print("\n--- Generando audio con gTTS (requiere internet) ---")
-            texto_a_voz_gtts(contenido_del_archivo, nombre_archivo=nombre_salida_gtts)
-            
-            # Seleccionar una melodía aleatoria
-            melodias_disponibles = [f for f in os.listdir(carpeta_melodias) if f.endswith(".mp3")]
-            if melodias_disponibles:
-                archivo_melodia = os.path.join(carpeta_melodias, random.choice(melodias_disponibles))
-                print(f"Melodía seleccionada: {os.path.basename(archivo_melodia)}")
-            else:
-                archivo_melodia = None
-                print("No se encontró ninguna melodía en la carpeta 'in'.")
-            archivo_voz_gtts = nombre_salida_gtts
-            archivo_voz_pyttsx3 = nombre_salida_pyttsx3
-            archivo_salida_fusion_gtts = os.path.join(carpeta_out, f"{nombre_base}_gtts_melodia.mp3")
-            archivo_salida_fusion_pyttsx3 = os.path.join(carpeta_out, f"{nombre_base}_pyttsx3_melodia.wav")
-            if archivo_melodia and os.path.exists(archivo_melodia):
-                if os.path.exists(archivo_voz_gtts):
-                    print("\n--- Fusionando voz gTTS con melodía ---")
-                    fusionar_voz_con_melodias_aleatorias(archivo_voz_gtts, carpeta_melodias, archivo_salida_fusion_gtts)
-                if os.path.exists(archivo_voz_pyttsx3):
-                    print("\n--- Fusionando voz pyttsx3 con melodía ---")
-                    fusionar_voz_con_melodias_aleatorias(archivo_voz_pyttsx3, carpeta_melodias, archivo_salida_fusion_pyttsx3)
-            else:
-                print("No se encontró el archivo de melodía para fusionar.")
-        else:
-            print(f"No se pudo leer el archivo de entrada {nombre_archivo_entrada}. No se generará audio.")
-    print("\nProceso completado. Revisa los archivos de audio generados en la carpeta 'out'.")
+        nombre_base = os.path.splitext(os.path.basename(nombre_archivo_entrada))[0]
+        for motor_actual in motores:
+            ext = extension_por_motor(motor_actual)
+            salida_voz = os.path.join(carpeta_out, f"{nombre_base}_{motor_actual}.{ext}")
+            salida_fusion = os.path.join(
+                carpeta_out, f"{nombre_base}_{motor_actual}_melodia.{ext}"
+            )
+
+            print(f"\n--- Generando audio con {motor_actual} ---")
+            ok_tts = generar_audio_por_motor(motor_actual, contenido, salida_voz)
+
+            if fusionar and ok_tts and os.path.exists(salida_voz):
+                print(f"--- Fusionando voz {motor_actual} con melodias ---")
+                fusionar_voz_con_melodias_aleatorias(
+                    archivo_voz=salida_voz,
+                    carpeta_melodias=carpeta_melodias,
+                    archivo_salida=salida_fusion,
+                )
+            elif fusionar:
+                print("No se genero el audio de voz; se omite la fusion.")
+
+    print("\nProceso completado. Revisa los archivos generados en la carpeta 'out'.")
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description="Texto a voz con gTTS, pyttsx3 o Gemini TTS + fusion opcional con melodias."
+    )
+    parser.add_argument(
+        "--motor",
+        choices=["gtts", "pyttsx3", "gemini", "todos"],
+        default="gtts",
+        help="Motor de voz a usar (default: gtts).",
+    )
+    parser.add_argument(
+        "--sin-fusion",
+        action="store_true",
+        help="No fusionar voz con melodias.",
+    )
+    parser.add_argument("--in", dest="carpeta_in", default="in")
+    parser.add_argument("--out", dest="carpeta_out", default="out")
+    parser.add_argument("--melodias", dest="carpeta_melodias", default="melodias")
+    return parser.parse_args()
+
+
+if __name__ == "__main__":
+    args = parse_args()
+    procesar_archivos(
+        motor=args.motor,
+        carpeta_in=args.carpeta_in,
+        carpeta_out=args.carpeta_out,
+        carpeta_melodias=args.carpeta_melodias,
+        fusionar=not args.sin_fusion,
+    )
