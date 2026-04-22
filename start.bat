@@ -28,8 +28,10 @@ if errorlevel 1 (
     exit /b 1
 )
 
+REM Uso: start.bat [gtts | pyttsx3 | gemini | kokoro | qwen | piper | vits | todos]
 set MOTOR=%~1
-if "%MOTOR%"=="" set MOTOR=gtts
+if "%MOTOR%"=="" set MOTOR=kokoro
+set VOZ=%~2
 
 if /I "%MOTOR%"=="gemini" goto :check_gemini
 if /I "%MOTOR%"=="todos" goto :check_gemini
@@ -45,7 +47,12 @@ if "%GEMINI_API_KEY%"=="" (
 :run
 echo.
 echo Ejecutando main.py con motor: %MOTOR%
-python main.py --motor %MOTOR%
+if "%VOZ%"=="" (
+    python main.py --motor %MOTOR%
+) else (
+    echo Usando voz: %VOZ%
+    python main.py --motor %MOTOR% --voz %VOZ%
+)
 if errorlevel 1 (
     echo Ocurrio un error al ejecutar main.py
 )
