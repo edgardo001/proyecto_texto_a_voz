@@ -1,10 +1,11 @@
 import os
 import requests
 import tarfile
-import time
-import functools
+
 import soundfile as sf
 import sherpa_onnx
+
+from modules.utils import medir_tiempo
 
 # ============================================================
 # Configuracion de voz VITS (Sherpa-ONNX)
@@ -23,16 +24,6 @@ MODEL_TARBALL = "vits-piper-es_AR-daniela-high.tar.bz2"
 MODEL_FOLDER  = "vits-piper-es_AR-daniela-high"
 DOWNLOAD_URL  = f"https://github.com/k2-fsa/sherpa-onnx/releases/download/tts-models/{MODEL_TARBALL}"
 
-def medir_tiempo(func):
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        inicio = time.time()
-        print(f"Iniciando {func.__name__}...")
-        resultado = func(*args, **kwargs)
-        fin = time.time()
-        print(f"{func.__name__} completado en {fin - inicio:.2f} segundos")
-        return resultado
-    return wrapper
 
 def ensure_model(models_dir):
     folder = os.path.join(models_dir, MODEL_FOLDER)
