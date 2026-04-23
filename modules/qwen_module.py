@@ -7,13 +7,13 @@ os.makedirs(models_dir, exist_ok=True)
 os.environ["HF_HOME"] = models_dir
 os.environ["HUGGINGFACE_HUB_CACHE"] = models_dir
 
-import time
-import functools
 import torch
 import soundfile as sf
 import traceback
 import re
 import numpy as np
+
+from modules.utils import medir_tiempo
 
 # Configuración del modelo Qwen (descomenta el que quieras usar)
 # MODEL_ID = "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice"  # Alta fidelidad (pesado)
@@ -26,16 +26,6 @@ try:
 except ImportError:
     HAS_QWEN = False
 
-def medir_tiempo(func):
-    @functools.wraps(func)
-    def wrapper(*args, **kwargs):
-        inicio = time.time()
-        print(f"Iniciando {func.__name__}...")
-        resultado = func(*args, **kwargs)
-        fin = time.time()
-        print(f"{func.__name__} completado en {fin - inicio:.2f} segundos")
-        return resultado
-    return wrapper
 
 def dividir_en_oraciones(texto):
     """
