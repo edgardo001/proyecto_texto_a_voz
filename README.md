@@ -47,6 +47,21 @@ Tiempos medidos con un archivo de **201 palabras** en un Intel Core Ultra (Windo
 
 > **Nota:** La primera ejecución de `piper`, `vits`, `kokoro` y `qwen` incluye la descarga de modelos, que se almacenan en `models/` para ejecuciones posteriores. `gtts`, `pyttsx3` y `gemini` no descargan modelos locales. Los tiempos varían según el hardware y escalan proporcionalmente con la cantidad de palabras.
 
+### Benchmark con texto largo (~7,000 palabras)
+
+Tiempos medidos con un archivo de **7,026 palabras** en el mismo hardware (modelos ya en cache, sin fusión con melodías).
+
+| Motor | Tiempo de generación | Duración del audio | Velocidad relativa |
+|-------|---------------------|--------------------|--------------------|
+| `pyttsx3` | 27.32 s | 51 min 51 s | Instantáneo |
+| `piper` | 1 min 53 s | 71 min 42 s | Muy rápido |
+| `gtts` | 4 min 15 s | 77 min 01 s | Rápido (requiere internet) |
+| `vits` | 9 min 44 s | 47 min 46 s | Moderado |
+| `kokoro` | 17 min 05 s | 55 min 35 s | Lento |
+| `qwen` | 5 hrs 24 min | 66 min 43 s | Impracticable en CPU |
+
+> **Nota:** `qwen` en CPU (sin GPU) es extremadamente lento para textos largos. Para uso práctico con textos extensos, se recomienda `piper` o `kokoro` como mejores opciones locales en balance velocidad/calidad. `gemini` no fue incluido en este benchmark por limitaciones del plan gratuito de la API.
+
 ---
 
 ## Configuración y Requisitos
@@ -72,6 +87,7 @@ Tiempos medidos con un archivo de **201 palabras** en un Intel Core Ultra (Windo
 
 # Ejecutar con VITS (Voz Española)
 .\start.bat vits
+```
 
 ### Motor Piper (ONNX)
 - **Voz activa**: `mls_9972-low` (**Femenina**, Español España) — *default*
@@ -99,5 +115,6 @@ Tiempos medidos con un archivo de **201 palabras** en un Intel Core Ultra (Windo
 - **Voces**: `Vivian` (Femenina), `Ryan` (Masculina).
 
 # Ejecutar con Qwen (IA Avanzada)
+```powershell
 .\start.bat qwen Vivian
 ```
